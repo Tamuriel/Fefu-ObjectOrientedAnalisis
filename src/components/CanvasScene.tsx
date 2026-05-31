@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { RasterRenderer } from '../lib/math/raster/RasterRenderer';
 import type { LineAlg } from '../lib/math/raster/RasterRenderer';
+import { Rect, Line, Oval } from '../lib/math/shape';
 
 interface CanvasSceneProps {
   lineAlg: LineAlg;
@@ -11,7 +12,6 @@ const CanvasScene = ({ lineAlg }: CanvasSceneProps) => {
   const rendererRef = useRef<RasterRenderer | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // React to lineAlg changes
   useEffect(() => {
     if (rendererRef.current) {
       rendererRef.current.setLineAlgorithm(lineAlg);
@@ -38,52 +38,52 @@ const CanvasScene = ({ lineAlg }: CanvasSceneProps) => {
       ro.observe(canvas);
     }
 
+    const rectShape = new Rect(220, 120);
+    rectShape.transform.x = 260;
+    rectShape.transform.y = 200;
+    rectShape.transform.rotation = 0.28;
+    rectShape.fillStyle = '#1e90ff';
+    rectShape.fillOpacity = 200;
+    rectShape.strokeStyle = '#003366';
+    rectShape.strokeWidth = 4;
+
+    const lineShape = new Line(500, 120, 760, 240);
+    lineShape.strokeStyle = '#00aa55';
+    lineShape.strokeWidth = 8;
+
+    const ovalShape = new Oval(110, 70);
+    ovalShape.transform.x = 520;
+    ovalShape.transform.y = 520;
+    ovalShape.transform.rotation = -0.22;
+    ovalShape.fillStyle = '#ffb000';
+    ovalShape.fillOpacity = 192;
+    ovalShape.strokeStyle = '#8a4b00';
+    ovalShape.strokeWidth = 4;
+
+    const testPoint = { x: 420, y: 260 };
+
     let raf = 0;
     const frame = () => {
       const r = rendererRef.current;
       if (r) {
-        r.beginFrame(true); // очистить буфер
+        r.beginFrame(true);
 
-        // Демонстрация: красный полигон с черной обводкой
-        const pts = [
-          { x: 100, y: 100 },
-          { x: 420, y: 120 },
-          { x: 140, y: 380 },
-        ];
-        const red = { r: 255, g: 0, b: 0, a: 255 };
-        const black = { r: 0, g: 0, b: 0, a: 255 };
+        rectShape.drawRaster(r);
+        lineShape.drawRaster(r);
+        ovalShape.drawRaster(r);
 
-        r.fillPolygon(pts, red);
-        r.strokePolygon(pts, black, 4);
+        const pointColor = { r: 255, g: 255, b: 255, a: 255 };
+        r.fillCircle(testPoint.x, testPoint.y, 6, pointColor);
+        r.strokeLine(testPoint.x - 8, testPoint.y, testPoint.x + 8, testPoint.y, pointColor, 2);
+        r.strokeLine(testPoint.x, testPoint.y - 8, testPoint.x, testPoint.y + 8, pointColor, 2);
 
-        // Демонстрация: синий квадрат и полупрозрачный красный круг для проверки прозрачности
-        const blueSquare = [
-          { x: 520, y: 120 },
-          { x: 760, y: 120 },
-          { x: 760, y: 360 },
-          { x: 520, y: 360 },
-        ];
-        const blue = { r: 0, g: 0, b: 255, a: 255 };
-        r.fillPolygon(blueSquare, blue);
+        const hitColor = { r: 0, g: 0, b: 0, a: 255 };
+        if (rectShape.hitTest(testPoint.x, testPoint.y)) {
+          r.strokeLine(testPoint.x - 10, testPoint.y - 10, testPoint.x + 10, testPoint.y + 10, hitColor, 1);
+          r.strokeLine(testPoint.x + 10, testPoint.y - 10, testPoint.x - 10, testPoint.y + 10, hitColor, 1);
+        }
 
-        const semiTransparentRed = { r: 255, g: 0, b: 0, a: 128 };
-        r.fillCircle(640, 240, 80, semiTransparentRed);
-
-        // Демонстрация: толстая ломаная линия
-        const linePoints = [
-          { x: 260, y: 440 },
-          { x: 420, y: 500 },
-          { x: 520, y: 440 },
-          { x: 620, y: 520 },
-        ];
-        const green = { r: 0, g: 255, b: 0, a: 255 };
-        r.strokePolygon(linePoints, green, 10);
-
-        // Демонстрация зависимости от алгоритма линий
-        const algoLineColor = { r: 0, g: 0, b: 0, a: 255 };
-        r.drawLine(40, 40, 260, 90, algoLineColor);
-
-        r.commit(); // вывести на экран
+        r.commit();
       }
 
       raf = requestAnimationFrame(frame);
