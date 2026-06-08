@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { RasterRenderer } from '../lib/math/raster/RasterRenderer';
 import type { LineAlg } from '../lib/math/raster/RasterRenderer';
-import { Rect, Line, Oval } from '../lib/math/shape';
+import { Rect, Line, Oval, Triangle, QuadraticBezier, CubicBezier, PathBezier } from '../lib/math/shape';
 
 interface CanvasSceneProps {
   lineAlg: LineAlg;
@@ -60,7 +60,36 @@ const CanvasScene = ({ lineAlg }: CanvasSceneProps) => {
     ovalShape.strokeStyle = '#8a4b00';
     ovalShape.strokeWidth = 4;
 
-    const testPoint = { x: 420, y: 260 };
+    // Треугольник
+    const triangleShape = new Triangle(800, 100, 900, 300, 700, 300);
+    triangleShape.fillStyle = '#ff6b9d';
+    triangleShape.fillOpacity = 200;
+    triangleShape.strokeStyle = '#c41e3a';
+    triangleShape.strokeWidth = 3;
+
+    // Квадратическая кривая Безье - 3 точки управления
+    const quadBezier = new QuadraticBezier(150, 450, 250, 350, 350, 450);
+    quadBezier.strokeStyle = '#00ff88';
+    quadBezier.strokeWidth = 1;
+
+    // Кубическая кривая Безье - 4 точки управления (S-образная кривая)
+    const cubicBezier = new CubicBezier(450, 400, 480, 500, 580, 300, 610, 400);
+    cubicBezier.strokeStyle = '#ff00ff';
+    cubicBezier.strokeWidth = 1;
+
+    // PathBezier с режимом Catmull-Rom - замкнутый путь
+    const pathBezierClosed = new PathBezier([
+      { x: 750, y: 450 },
+      { x: 800, y: 380 },
+      { x: 880, y: 400 },
+      { x: 920, y: 480 },
+      { x: 880, y: 560 },
+      { x: 800, y: 580 },
+    ]);
+    pathBezierClosed.mode = 'catmull';
+    pathBezierClosed.closed = true;
+    pathBezierClosed.strokeStyle = '#00ccff';
+    pathBezierClosed.strokeWidth = 1;
 
     let raf = 0;
     const frame = () => {
@@ -68,9 +97,16 @@ const CanvasScene = ({ lineAlg }: CanvasSceneProps) => {
       if (r) {
         r.beginFrame(true);
 
+        // Нарисовать все фигуры
         rectShape.drawRaster(r);
         lineShape.drawRaster(r);
         ovalShape.drawRaster(r);
+        triangleShape.drawRaster(r);
+        quadBezier.drawRaster(r);
+        cubicBezier.drawRaster(r);
+        pathBezierClosed.drawRaster(r);
+
+        const testPoint = { x: 420, y: 260 };
 
         const pointColor = { r: 255, g: 255, b: 255, a: 255 };
         r.fillCircle(testPoint.x, testPoint.y, 6, pointColor);
@@ -99,7 +135,7 @@ const CanvasScene = ({ lineAlg }: CanvasSceneProps) => {
   }, []);
 
   return (
-    <div ref={containerRef} className="overflow-hidden bg-gray-50" style={{ width: 1400, height: 700 }}>
+    <div ref={containerRef} className="overflow-auto bg-gray-50" style={{ width: '100%', height: '100%' }}>
       <canvas
         ref={canvasRef}
         className="block"
