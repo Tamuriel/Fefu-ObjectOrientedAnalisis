@@ -89,6 +89,7 @@ describe('Shape system', () => {
   test('Triangle control points editing', () => {
     const tri = new Triangle(0, 0, 100, 0, 50, 86.6);
     const points = tri.getControlPoints();
+    expect(points).toHaveLength(3);
     tri.setControlPoint(0, { x: 10, y: 10 });
     const updated = tri.getControlPoints();
     expect(updated[0].x).toBe(10);
@@ -152,6 +153,14 @@ describe('Shape system', () => {
     // Проверка попадания рядом с кривой
     const points = curve.flattenDevicePoints();
     expect(curve.hitTest(points[1].x, points[1].y)).toBe(true);
+  });
+
+  test('QuadraticBezier closed flatten adds endpoint', () => {
+    const curve = new QuadraticBezier(0, 0, 50, 100, 100, 0);
+    curve.closed = true;
+    const points = curve.flattenDevicePoints();
+    expect(points[points.length - 1].x).toBeCloseTo(points[0].x);
+    expect(points[points.length - 1].y).toBeCloseTo(points[0].y);
   });
 
   test('QuadraticBezier control points', () => {
@@ -220,6 +229,14 @@ describe('Shape system', () => {
     const updated = curve.getControlPoints();
     expect(updated[2].x).toBe(80);
     expect(updated[2].y).toBe(-120);
+  });
+
+  test('CubicBezier closed flatten adds endpoint', () => {
+    const curve = new CubicBezier(0, 0, 30, 100, 70, -100, 100, 0);
+    curve.closed = true;
+    const points = curve.flattenDevicePoints();
+    expect(points[points.length - 1].x).toBeCloseTo(points[0].x);
+    expect(points[points.length - 1].y).toBeCloseTo(points[0].y);
   });
 
   test('CubicBezier serialization', () => {
@@ -299,6 +316,23 @@ describe('Shape system', () => {
     // Первая и последняя точки должны совпадать с опорными
     expect(points[0].x).toBeCloseTo(0);
     expect(points[0].y).toBeCloseTo(0);
+  });
+
+  test('PathBezier closed catmull path closes smoothly', () => {
+    const path = new PathBezier([
+      { x: 0, y: 0 },
+      { x: 50, y: 100 },
+      { x: 100, y: 0 },
+      { x: 150, y: 100 },
+    ]);
+    path.mode = 'catmull';
+    path.closed = true;
+
+    const points = path.flattenDevicePoints();
+    expect(points[points.length - 1].x).toBeCloseTo(points[0].x);
+    expect(points[points.length - 1].y).toBeCloseTo(points[0].y);
+    expect(points[points.length - 2].x).not.toBeCloseTo(points[0].x);
+    expect(points[points.length - 2].y).not.toBeCloseTo(points[0].y);
   });
 
   test('PathBezier serialization', () => {

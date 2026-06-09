@@ -7,6 +7,17 @@ export class QuadraticBezier extends Shape {
   public p1: { x: number; y: number };
   public p2: { x: number; y: number };
 
+  private _closed = false;
+  public get closed() {
+    return this._closed;
+  }
+  public set closed(value: boolean) {
+    if (this._closed !== value) {
+      this._closed = value;
+      this.cachedPoints = null;
+    }
+  }
+
   // Кэшированное приближение
   private cachedPoints: { x: number; y: number }[] | null = null;
   private cachedPointsFlatness: number | null = null;
@@ -63,6 +74,14 @@ export class QuadraticBezier extends Shape {
       points.push(this.evalLocal(t));
     }
 
+    if (this.closed && points.length > 1) {
+      const first = points[0];
+      const last = points[points.length - 1];
+      if (first.x !== last.x || first.y !== last.y) {
+        points.push({ ...first });
+      }
+    }
+
     this.cachedPoints = points;
     this.cachedPointsFlatness = key;
 
@@ -89,8 +108,6 @@ export class QuadraticBezier extends Shape {
   }
 
   getLocalBounds(): Bounds {
-    const points = [this.p0, this.p1, this.p2];
-
     // Проверить экстремумы в x и y
     const xs = [this.p0.x, this.p2.x];
     const ys = [this.p0.y, this.p2.y];
@@ -206,6 +223,7 @@ export class QuadraticBezier extends Shape {
       this.p2.x,
       this.p2.y
     );
+    copy.closed = this.closed;
     this.applyBaseState(copy);
     return copy;
   }
@@ -217,6 +235,7 @@ export class QuadraticBezier extends Shape {
       p0: { ...this.p0 },
       p1: { ...this.p1 },
       p2: { ...this.p2 },
+      closed: this.closed,
       transform: { ...this.transform },
       fillStyle: this.fillStyle,
       strokeStyle: this.strokeStyle,

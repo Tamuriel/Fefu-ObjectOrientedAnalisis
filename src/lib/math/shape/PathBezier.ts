@@ -158,14 +158,6 @@ export class PathBezier extends Shape {
       }
     }
 
-    if (this.closed && result.length > 1) {
-      const start = result[0];
-      const end = result[result.length - 1];
-      if (start.x !== end.x || start.y !== end.y) {
-        result.push({ ...start });
-      }
-    }
-
     return result;
   }
 
@@ -180,8 +172,7 @@ export class PathBezier extends Shape {
     }
 
     const points = this.anchors;
-    let start = 0;
-    let end = this.anchors.length;
+    const end = this.anchors.length;
 
     // Если не закрыт, мы не можем создать сегмент до первой точки или после последней
     if (!this.closed) {
@@ -190,7 +181,8 @@ export class PathBezier extends Shape {
     }
 
     // Обработать каждый сегмент
-    for (let i = 0; i < end - 1; i++) {
+    const limit = this.closed ? end : end - 1;
+    for (let i = 0; i < limit; i++) {
       // Получить четыре точки, необходимые для Catmull-Rom
       let p0: { x: number; y: number };
       let p1: { x: number; y: number };
@@ -249,7 +241,7 @@ export class PathBezier extends Shape {
     return beziers;
   }
 
-  private estimateBezierCurvature(segmentIndex: number): number {
+  private estimateBezierCurvature(_segmentIndex: number): number {
     // Простая оценка на основе отклонения управляющей точки
     return 1.0;
   }

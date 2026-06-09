@@ -8,6 +8,17 @@ export class CubicBezier extends Shape {
   public p2: { x: number; y: number };
   public p3: { x: number; y: number };
 
+  private _closed = false;
+  public get closed() {
+    return this._closed;
+  }
+  public set closed(value: boolean) {
+    if (this._closed !== value) {
+      this._closed = value;
+      this.cachedPoints = null;
+    }
+  }
+
   // Кэшированное приближение
   private cachedPoints: { x: number; y: number }[] | null = null;
   private cachedPointsFlatness: number | null = null;
@@ -69,6 +80,14 @@ export class CubicBezier extends Shape {
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
       points.push(this.evalLocal(t));
+    }
+
+    if (this.closed && points.length > 1) {
+      const first = points[0];
+      const last = points[points.length - 1];
+      if (first.x !== last.x || first.y !== last.y) {
+        points.push({ ...first });
+      }
     }
 
     this.cachedPoints = points;
@@ -226,6 +245,7 @@ export class CubicBezier extends Shape {
       this.p3.x,
       this.p3.y
     );
+    copy.closed = this.closed;
     this.applyBaseState(copy);
     return copy;
   }
@@ -238,6 +258,7 @@ export class CubicBezier extends Shape {
       p1: { ...this.p1 },
       p2: { ...this.p2 },
       p3: { ...this.p3 },
+      closed: this.closed,
       transform: { ...this.transform },
       fillStyle: this.fillStyle,
       strokeStyle: this.strokeStyle,

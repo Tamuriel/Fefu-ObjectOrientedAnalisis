@@ -71,20 +71,21 @@ const CanvasScene = ({ lineAlg }: CanvasSceneProps) => {
     const quadBezier = new QuadraticBezier(150, 450, 250, 350, 350, 450);
     quadBezier.strokeStyle = '#00ff88';
     quadBezier.strokeWidth = 1;
+    quadBezier.closed = true;
 
     // Кубическая кривая Безье - 4 точки управления (S-образная кривая)
     const cubicBezier = new CubicBezier(450, 400, 480, 500, 580, 300, 610, 400);
     cubicBezier.strokeStyle = '#ff00ff';
     cubicBezier.strokeWidth = 1;
+    cubicBezier.closed = true;
 
-    // PathBezier с режимом Catmull-Rom - замкнутый путь
+    // PathBezier с режимом Catmull-Rom - произвольная замкнутая кривая
     const pathBezierClosed = new PathBezier([
-      { x: 750, y: 450 },
-      { x: 800, y: 380 },
-      { x: 880, y: 400 },
-      { x: 920, y: 480 },
-      { x: 880, y: 560 },
-      { x: 800, y: 580 },
+      { x: 700, y: 520 },
+      { x: 760, y: 360 },
+      { x: 820, y: 580 },
+      { x: 880, y: 380 },
+      { x: 910, y: 500 }
     ]);
     pathBezierClosed.mode = 'catmull';
     pathBezierClosed.closed = true;
