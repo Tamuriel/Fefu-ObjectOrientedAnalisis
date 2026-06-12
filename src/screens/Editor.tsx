@@ -1,75 +1,149 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { FaMousePointer, FaSquare, FaCircle } from 'react-icons/fa';
+import { useCallback, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import CanvasScene from '../components/CanvasScene';
+import CanvasScene, { type CanvasSceneHandle } from '../components/CanvasScene';
 import type { LineAlg } from '../lib/math/raster/RasterRenderer';
 
 const Editor = () => {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const canvasRef = useRef<CanvasSceneHandle | null>(null);
     const [lineAlg, setLineAlg] = useState<LineAlg>('bresenham');
+    const [, setUpdateKey] = useState(0);
+
+    const handleCanvasUpdate = useCallback(() => {
+        setUpdateKey((value) => value + 1);
+    }, []);
+
+    const handleSave = useCallback(() => {
+        console.log('Save project', id);
+    }, [id]);
+
+    const layerItems = canvasRef.current?.getLayers() ?? [];
+    const selectedLabel = canvasRef.current?.getSelectedLabel() ?? 'Пусто';
 
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="h-screen flex flex-col bg-slate-900 text-white"
+            className="editor-screen"
         >
-            <header className="h-14 border-b border-slate-700 flex items-center justify-between px-4 bg-slate-800">
-                <Link to="/" className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
-                    Назад
-                </Link>
-                <h1>Редактирование проекта №{id}</h1>
-                <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
-                    Сохранить
-                </button>
+            <header className="editor-topbar">
+                <h1 className="editor-topbar__title">Редактирование проекта №{id}</h1>
+                <div className="editor-topbar__actions">
+                    <Link to="/" className="editor-button editor-button--secondary">
+                        Галерея
+                    </Link>
+                    <button type="button" onClick={() => navigate(-1)} className="editor-button editor-button--secondary">
+                        Назад
+                    </button>
+                </div>
             </header>
-            <div className="flex flex-1 gap-4 p-4">
-                <aside className="flex-shrink-0">
-                    <div className="w-16 border border-slate-700 bg-slate-800 rounded flex flex-col items-center py-4 space-y-4">
-                        <FaMousePointer className="text-white cursor-pointer hover:text-blue-400" />
-                        <FaSquare className="text-white cursor-pointer hover:text-blue-400" />
-                        <FaCircle className="text-white cursor-pointer hover:text-blue-400" />
+
+            <div className="editor-layout">
+                <section className="editor-controls" aria-label="Панель управления холстом">
+                    <div className="editor-controls__top">
+                    <div className="editor-controls__block editor-controls__block--left">
+                        <button type="button" className="editor-button editor-button--primary editor-button--save" onClick={handleSave}>
+                            Сохранить
+                        </button>
+                        <label className="editor-select-label editor-select-label--block">
+                            Алг. линий
+                            <select
+                                className="editor-select"
+                                value={lineAlg}
+                                onChange={(event) => setLineAlg(event.target.value as LineAlg)}
+                            >
+                                <option value="bresenham">Bresenham</option>
+                                <option value="wu">Wu</option>
+                            </select>
+                        </label>
                     </div>
-                </aside>
-                <main className="flex-1 flex flex-col gap-4 min-w-0">
-                    <div className="flex-1 bg-white shadow-lg rounded overflow-hidden border border-slate-300 min-h-[520px] min-w-[760px]">
-                        <CanvasScene lineAlg={lineAlg} />
+
+                    <div className="editor-controls__block editor-controls__block--middle">
+                        <button type="button" className="editor-button" onClick={() => canvasRef.current?.addRectangle()}>
+                            Прямоуг.
+                        </button>
+                        <button type="button" className="editor-button" onClick={() => canvasRef.current?.addOval()}>
+                            Овал
+                        </button>
+                        <button type="button" className="editor-button" onClick={() => canvasRef.current?.addLine()}>
+                            Линия
+                        </button>
+                        <button type="button" className="editor-button" onClick={() => canvasRef.current?.addTriangle()}>
+                            Треуг.
+                        </button>
+                        <button type="button" className="editor-button" onClick={() => canvasRef.current?.addPath()}>
+                            Кривая
+                        </button>
                     </div>
-                </main>
-                <aside className="w-56 border border-slate-700 bg-slate-800 p-4 rounded h-fit">
-                    <h2 className="text-white mb-3 font-semibold">Свойства</h2>
-                    
-                    <div className="space-y-3">
-                        <div>
-                            <label className="text-white text-xs font-semibold block mb-2">
-                                Алгоритм линии
-                            </label>
-                            <div className="space-y-1">
+
+                    <div className="editor-controls__block editor-controls__block--right">
+                        <div className="editor-panel__title">Выбранный объект</div>
+                        <div className="editor-panel__hint">{selectedLabel}</div>
+                        <div className="editor-panel__actions">
+                            <button type="button" className="editor-button editor-button--small" onClick={() => canvasRef.current?.deleteSelectedShape()}>
+                                Удалить
+                            </button>
+                            <button type="button" className="editor-button editor-button--small" onClick={() => canvasRef.current?.moveLayer(1)}>
+                                Вверх
+                            </button>
+                            <button type="button" className="editor-button editor-button--small" onClick={() => canvasRef.current?.moveLayer(-1)}>
+                                Вниз
+                            </button>
+                            {canvasRef.current?.getSelectedShapeType() === 'PathBezier' && (
+                              <>
                                 <button
-                                    onClick={() => setLineAlg('bresenham')}
-                                    className={`w-full py-1.5 px-2 rounded text-sm transition ${
-                                        lineAlg === 'bresenham'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
-                                    }`}
+                                    type="button"
+                                    className="editor-button editor-button--small"
+                                    style={canvasRef.current?.getInsertPointMode() ? { background: '#10b981', color: '#ffffff', borderColor: '#059669' } : undefined}
+                                    onClick={() => canvasRef.current?.setInsertPointMode(!(canvasRef.current?.getInsertPointMode() ?? false))}
                                 >
-                                    Брезенхем
+                                    Вставить точку
                                 </button>
                                 <button
-                                    onClick={() => setLineAlg('wu')}
-                                    className={`w-full py-1.5 px-2 rounded text-sm transition ${
-                                        lineAlg === 'wu'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
-                                    }`}
+                                    type="button"
+                                    className="editor-button editor-button--small"
+                                    style={canvasRef.current?.getDeletePointMode()
+                                        ? { background: '#dc2626', color: '#ffffff', borderColor: '#b91c1c' }
+                                        : { background: '#ffffff', color: '#111827', borderColor: '#d1d5db' }}
+                                    onClick={() => canvasRef.current?.setDeletePointMode(!(canvasRef.current?.getDeletePointMode() ?? false))}
                                 >
-                                    Сяолиня Ву
+                                    Удалить точку
                                 </button>
-                            </div>
+                              </>
+                            )}
                         </div>
                     </div>
+                </div>
+                </section>
+
+                <section className="editor-canvas">
+                    <div className="editor-canvas__frame">
+                        <CanvasScene
+                            ref={canvasRef}
+                            lineAlg={lineAlg}
+                            onUpdate={handleCanvasUpdate}
+                            hideUi
+                            hideInternalLayers
+                        />
+                    </div>
+                </section>
+
+                <aside className="editor-layers" aria-label="Список слоёв">
+                    <div className="editor-layers__header">Слои</div>
+                    <ul className="editor-layers__list">
+                        {layerItems.length === 0 ? (
+                            <li className="layer-item">Нет слоёв</li>
+                        ) : (
+                            layerItems.map((layer) => (
+                                <li key={layer.id} className="layer-item">
+                                    {layer.label}
+                                </li>
+                            ))
+                        )}
+                    </ul>
                 </aside>
             </div>
         </motion.div>

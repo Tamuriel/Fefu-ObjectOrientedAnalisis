@@ -7,15 +7,21 @@ import Editor from "./screens/Editor";
 function App() {
     const location = useLocation();
 
+    const isEditorRoute = location.pathname.startsWith('/editor');
+
     return (
         <div className="min-h-screen bg-slate-950 text-white">
-            <header>
-                <h1> Тут мог быть Ваш заголовок </h1>
-            </header>
+            {!isEditorRoute && (
+                <>
+                    <header>
+                        <h1> Векторный редактор </h1>
+                    </header>
 
-            <nav className="Navigation">
-                <Link to="/" className="GalleryLink"> Галерея </Link>
-            </nav>
+                    <nav className="Navigation">
+                        <Link to="/" className="GalleryLink"> Галерея </Link>
+                    </nav>
+                </>
+            )}
 
             <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname}>

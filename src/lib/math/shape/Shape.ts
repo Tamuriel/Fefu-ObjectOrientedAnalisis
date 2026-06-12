@@ -33,9 +33,11 @@ const DEFAULT_STYLE: ShapeStyle = {
 };
 
 let shapeIdCounter = 1;
+const typeCounters: Record<string, number> = {};
 
 export abstract class Shape {
   readonly id: string;
+  readonly name: string;
   transform: Transform;
   fillStyle = DEFAULT_STYLE.fillStyle;
   strokeStyle = DEFAULT_STYLE.strokeStyle;
@@ -51,8 +53,43 @@ export abstract class Shape {
     scaleX = 1,
     scaleY = 1
   ) {
+    const count = Shape.incrementTypeCount(type);
     this.id = `${type}-${shapeIdCounter++}`;
+    this.name = `${Shape.getTypeLabel(type)} ${count}`;
     this.transform = { x, y, rotation, scaleX, scaleY };
+  }
+
+  private static incrementTypeCount(type: string) {
+    typeCounters[type] = (typeCounters[type] ?? 0) + 1;
+    return typeCounters[type];
+  }
+
+  private static getTypeLabel(type: string) {
+    switch (type) {
+      case 'Rect':
+        return 'Прямоугольник';
+      case 'Line':
+        return 'Линия';
+      case 'Oval':
+        return 'Овал';
+      case 'Triangle':
+        return 'Треугольник';
+      case 'QuadraticBezier':
+        return 'Квадратичная кривая';
+      case 'CubicBezier':
+        return 'Кубическая кривая';
+      case 'PathBezier':
+        return 'Кривая';
+      default:
+        return type;
+    }
+  }
+
+  static resetCounters() {
+    shapeIdCounter = 1;
+    Object.keys(typeCounters).forEach((key) => {
+      delete typeCounters[key];
+    });
   }
 
   getLocalToDeviceMatrix() {
@@ -147,6 +184,14 @@ export abstract class Shape {
     target.fillOpacity = this.fillOpacity;
     target.strokeOpacity = this.strokeOpacity;
     target.strokeWidth = this.strokeWidth;
+  }
+
+  getControlPoints(): { x: number; y: number }[] {
+    return [];
+  }
+
+  setControlPoint(_index: number, _point: { x: number; y: number }): void {
+    // Override in shapes with editable control points
   }
 
   abstract clone(): Shape;

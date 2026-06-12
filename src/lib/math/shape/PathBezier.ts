@@ -14,6 +14,7 @@ export class PathBezier extends Shape {
   private cachedPoints: { x: number; y: number }[] | null = null;
   private cachedMode: PathMode | null = null;
   private cachedClosed: boolean | null = null;
+  private cachedPointsFlatness: number | null = null;
 
   constructor(points: { x: number; y: number }[] = []) {
     super('PathBezier');
@@ -23,28 +24,34 @@ export class PathBezier extends Shape {
   /**
    * Получить уплощенные (аппроксимированные) точки в координатах устройства
    */
+  private flattenLocalPoints(flatness: number = 0.5): { x: number; y: number }[] {
+    if (this.mode === 'polyline') {
+      return this.flattenPolyline();
+    }
+    if (this.mode === 'bezier') {
+      return this.flattenBezierMode(flatness);
+    }
+    if (this.mode === 'catmull') {
+      return this.flattenCatmullMode(flatness);
+    }
+    return this.flattenPolyline();
+  }
+
   flattenDevicePoints(flatness: number = 0.5): { x: number; y: number }[] {
     if (
       this.cachedPoints &&
       this.cachedMode === this.mode &&
-      this.cachedClosed === this.closed
+      this.cachedClosed === this.closed &&
+      this.cachedPointsFlatness === flatness
     ) {
       return this.cachedPoints.map(p => this.transformPointToDevice(p.x, p.y));
     }
 
-    let localPoints: { x: number; y: number }[] = [];
-
-    if (this.mode === 'polyline') {
-      localPoints = this.flattenPolyline();
-    } else if (this.mode === 'bezier') {
-      localPoints = this.flattenBezierMode(flatness);
-    } else if (this.mode === 'catmull') {
-      localPoints = this.flattenCatmullMode(flatness);
-    }
-
+    const localPoints = this.flattenLocalPoints(flatness);
     this.cachedPoints = localPoints;
     this.cachedMode = this.mode;
     this.cachedClosed = this.closed;
+    this.cachedPointsFlatness = flatness;
 
     return localPoints.map(p => this.transformPointToDevice(p.x, p.y));
   }
@@ -251,7 +258,7 @@ export class PathBezier extends Shape {
       return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
     }
 
-    const points = this.flattenDevicePoints();
+    const points = this.flattenLocalPoints();
     let result: Bounds = {
       minX: points[0].x,
       minY: points[0].y,
@@ -270,8 +277,7 @@ export class PathBezier extends Shape {
   }
 
   getBounds(): Bounds {
-    // Для путей границы уже находятся в пространстве устройства из-за уплощения
-    return this.getLocalBounds();
+    return this.transformBounds(this.getLocalBounds());
   }
 
   drawRaster(renderer: RasterRenderer): void {

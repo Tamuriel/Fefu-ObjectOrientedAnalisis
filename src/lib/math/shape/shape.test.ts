@@ -1,7 +1,17 @@
 import { describe, expect, test } from 'vitest';
-import { Rect, Line, Oval, Triangle, QuadraticBezier, CubicBezier, PathBezier } from './index';
+import { Shape, Rect, Line, Oval, Triangle, QuadraticBezier, CubicBezier, PathBezier } from './index';
 
 describe('Shape system', () => {
+  test('Shape naming starts from 1 after reset', () => {
+    Shape.resetCounters();
+
+    const rect = new Rect(100, 50);
+    expect(rect.name).toBe('Прямоугольник 1');
+
+    const line = new Line(0, 0, 100, 0);
+    expect(line.name).toBe('Линия 1');
+  });
+
   test('Rect hit test and bounds', () => {
     const rect = new Rect(100, 50);
     rect.transform.x = 200;
@@ -61,6 +71,21 @@ describe('Shape system', () => {
     expect(rect.transform.scaleX).not.toBe(1);
     expect(rect.transform.scaleY).not.toBe(1);
     expect(rect.hitTest(250, 230)).toBe(true);
+  });
+
+  test('Shape resizeFromDeviceAABB preserves mirroring across handles', () => {
+    const rect = new Rect(80, 40);
+    rect.transform.x = 200;
+    rect.transform.y = 200;
+
+    const startBounds = rect.getBounds();
+    const oppositeX = startBounds.maxX;
+    const oppositeY = startBounds.maxY;
+
+    rect.resizeFromDeviceAABB(oppositeX, oppositeY, oppositeX - 20, oppositeY - 20);
+
+    expect(rect.transform.scaleX).toBeLessThan(0);
+    expect(rect.transform.scaleY).toBeLessThan(0);
   });
 
   // Тесты Triangle
