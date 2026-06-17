@@ -1,4 +1,4 @@
-import { Shape, type Bounds } from './Shape';
+import { Shape, type Bounds, type ShapeJSON } from './Shape';
 import type { RasterRenderer, RGBA } from '../raster/RasterRenderer';
 
 interface Point2D {
@@ -75,16 +75,20 @@ export class Line extends Shape {
 
   toJSON() {
     return {
-      type: this.type,
-      id: this.id,
+      type: 'line',
       p1: { ...this.p1 },
       p2: { ...this.p2 },
-      transform: { ...this.transform },
-      strokeStyle: this.strokeStyle,
-      strokeOpacity: this.strokeOpacity,
-      strokeWidth: this.strokeWidth,
+      ...this.serializeBaseState(),
     };
   }
+}
+
+export function lineFromJSON(data: ShapeJSON) {
+  const p1 = data.p1 as { x: number; y: number } | undefined;
+  const p2 = data.p2 as { x: number; y: number } | undefined;
+  const line = new Line(p1?.x ?? 0, p1?.y ?? 0, p2?.x ?? 0, p2?.y ?? 0);
+  line.applySerializedBaseState(data);
+  return line;
 }
 
 function parseColor(cssColor: string, alpha: number): RGBA {

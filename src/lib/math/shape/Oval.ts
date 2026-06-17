@@ -1,4 +1,4 @@
-import { Shape, type Bounds } from './Shape';
+import { Shape, type Bounds, type ShapeJSON } from './Shape';
 import type { RasterRenderer, RGBA } from '../raster/RasterRenderer';
 
 export class Oval extends Shape {
@@ -73,18 +73,18 @@ export class Oval extends Shape {
 
   toJSON() {
     return {
-      type: this.type,
-      id: this.id,
+      type: 'oval',
       rx: this.rx,
       ry: this.ry,
-      transform: { ...this.transform },
-      fillStyle: this.fillStyle,
-      strokeStyle: this.strokeStyle,
-      fillOpacity: this.fillOpacity,
-      strokeOpacity: this.strokeOpacity,
-      strokeWidth: this.strokeWidth,
+      ...this.serializeBaseState(),
     };
   }
+}
+
+export function ovalFromJSON(data: ShapeJSON) {
+  const oval = new Oval(Number(data.rx) || 0, Number(data.ry) || 0);
+  oval.applySerializedBaseState(data);
+  return oval;
 }
 
 function parseColor(cssColor: string, alpha: number): RGBA {

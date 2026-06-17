@@ -1,4 +1,4 @@
-import { Shape, type Bounds } from './Shape';
+import { Shape, type Bounds, type ShapeJSON } from './Shape';
 import type { RasterRenderer, RGBA } from '../raster/RasterRenderer';
 
 export class CubicBezier extends Shape {
@@ -252,21 +252,35 @@ export class CubicBezier extends Shape {
 
   toJSON() {
     return {
-      type: this.type,
-      id: this.id,
+      type: 'cubic',
       p0: { ...this.p0 },
       p1: { ...this.p1 },
       p2: { ...this.p2 },
       p3: { ...this.p3 },
       closed: this.closed,
-      transform: { ...this.transform },
-      fillStyle: this.fillStyle,
-      strokeStyle: this.strokeStyle,
-      fillOpacity: this.fillOpacity,
-      strokeOpacity: this.strokeOpacity,
-      strokeWidth: this.strokeWidth,
+      ...this.serializeBaseState(),
     };
   }
+}
+
+export function cubicBezierFromJSON(data: ShapeJSON) {
+  const p0 = data.p0 as { x: number; y: number } | undefined;
+  const p1 = data.p1 as { x: number; y: number } | undefined;
+  const p2 = data.p2 as { x: number; y: number } | undefined;
+  const p3 = data.p3 as { x: number; y: number } | undefined;
+  const curve = new CubicBezier(
+    p0?.x ?? 0,
+    p0?.y ?? 0,
+    p1?.x ?? 0,
+    p1?.y ?? 0,
+    p2?.x ?? 0,
+    p2?.y ?? 0,
+    p3?.x ?? 0,
+    p3?.y ?? 0
+  );
+  curve.closed = Boolean(data.closed);
+  curve.applySerializedBaseState(data);
+  return curve;
 }
 
 /**

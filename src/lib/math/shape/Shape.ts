@@ -24,6 +24,18 @@ export interface ShapeStyle {
   strokeWidth: number;
 }
 
+export type ShapeJSON = Record<string, unknown> & {
+  type: string;
+  id?: string;
+  name?: string;
+  transform?: Partial<Transform>;
+  fillStyle?: string;
+  strokeStyle?: string;
+  fillOpacity?: number;
+  strokeOpacity?: number;
+  strokeWidth?: number;
+};
+
 const DEFAULT_STYLE: ShapeStyle = {
   fillStyle: '#000000',
   strokeStyle: '#000000',
@@ -199,5 +211,35 @@ export abstract class Shape {
   abstract hitTest(px: number, py: number): boolean;
   abstract getBounds(): Bounds;
   abstract getLocalBounds(): Bounds;
-  abstract toJSON(): Record<string, unknown>;
+
+  serializeBaseState() {
+    return {
+      transform: { ...this.transform },
+      fillStyle: this.fillStyle,
+      strokeStyle: this.strokeStyle,
+      fillOpacity: this.fillOpacity,
+      strokeOpacity: this.strokeOpacity,
+      strokeWidth: this.strokeWidth,
+    };
+  }
+
+  applySerializedBaseState(data: ShapeJSON) {
+    if (data.transform) {
+      this.transform = {
+        x: data.transform.x ?? this.transform.x,
+        y: data.transform.y ?? this.transform.y,
+        rotation: data.transform.rotation ?? this.transform.rotation,
+        scaleX: data.transform.scaleX ?? this.transform.scaleX,
+        scaleY: data.transform.scaleY ?? this.transform.scaleY,
+      };
+    }
+
+    if (typeof data.fillStyle === 'string') this.fillStyle = data.fillStyle;
+    if (typeof data.strokeStyle === 'string') this.strokeStyle = data.strokeStyle;
+    if (typeof data.fillOpacity === 'number') this.fillOpacity = data.fillOpacity;
+    if (typeof data.strokeOpacity === 'number') this.strokeOpacity = data.strokeOpacity;
+    if (typeof data.strokeWidth === 'number') this.strokeWidth = data.strokeWidth;
+  }
+
+  abstract toJSON(): ShapeJSON;
 }

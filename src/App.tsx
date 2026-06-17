@@ -1,5 +1,5 @@
 ﻿import "./App.css";
-import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import Gallery from "./screens/Gallery";
 import Editor from "./screens/Editor";
@@ -11,17 +11,7 @@ function App() {
 
     return (
         <div className="min-h-screen bg-slate-950 text-white">
-            {!isEditorRoute && (
-                <>
-                    <header>
-                        <h1> Векторный редактор </h1>
-                    </header>
-
-                    <nav className="Navigation">
-                        <Link to="/" className="GalleryLink"> Галерея </Link>
-                    </nav>
-                </>
-            )}
+            {!isEditorRoute && <header><h1> Векторный редактор </h1></header>}
 
             <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname}>

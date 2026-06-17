@@ -1,4 +1,4 @@
-import { Shape, type Bounds } from './Shape';
+import { Shape, type Bounds, type ShapeJSON } from './Shape';
 import type { RasterRenderer, RGBA } from '../raster/RasterRenderer';
 
 export class Triangle extends Shape {
@@ -137,19 +137,29 @@ export class Triangle extends Shape {
 
   toJSON() {
     return {
-      type: this.type,
-      id: this.id,
+      type: 'triangle',
       p0: { ...this.p0 },
       p1: { ...this.p1 },
       p2: { ...this.p2 },
-      transform: { ...this.transform },
-      fillStyle: this.fillStyle,
-      strokeStyle: this.strokeStyle,
-      fillOpacity: this.fillOpacity,
-      strokeOpacity: this.strokeOpacity,
-      strokeWidth: this.strokeWidth,
+      ...this.serializeBaseState(),
     };
   }
+}
+
+export function triangleFromJSON(data: ShapeJSON) {
+  const p0 = data.p0 as { x: number; y: number } | undefined;
+  const p1 = data.p1 as { x: number; y: number } | undefined;
+  const p2 = data.p2 as { x: number; y: number } | undefined;
+  const triangle = new Triangle(
+    p0?.x ?? 0,
+    p0?.y ?? 0,
+    p1?.x ?? 0,
+    p1?.y ?? 0,
+    p2?.x ?? 0,
+    p2?.y ?? 0
+  );
+  triangle.applySerializedBaseState(data);
+  return triangle;
 }
 
 function parseColor(cssColor: string, alpha: number): RGBA {

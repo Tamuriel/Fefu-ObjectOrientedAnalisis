@@ -1,8 +1,9 @@
-import { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { RasterRenderer, type LineAlg, type RGBA } from '../lib/math/raster/RasterRenderer';
 import { mat3 } from '../lib/math/mat3';
-import { Rect, Line, Oval, Triangle, QuadraticBezier, CubicBezier, PathBezier, Shape } from '../lib/math/shape';
-import type { Bounds } from '../lib/math/shape/Shape';
+import { Rect, Line, Oval, Triangle, PathBezier, Shape } from '../lib/math/shape';
+import { shapeFromJSON } from '../lib/math/shape/shapeFromJSON';
+import type { Bounds, ShapeJSON } from '../lib/math/shape/Shape';
 
 export interface CanvasSceneHandle {
   addRectangle: () => void;
@@ -10,6 +11,8 @@ export interface CanvasSceneHandle {
   addLine: () => void;
   addTriangle: () => void;
   addPath: () => void;
+  loadShapes: (shapes: ShapeJSON[]) => void;
+  exportShapes: () => ShapeJSON[];
   deleteSelectedShape: () => void;
   deleteSelectedControlPoint: () => void;
   moveLayer: (offset: number) => void;
@@ -46,6 +49,7 @@ const HANDLE_SIZE = 8;
 const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
   ({ lineAlg, onUpdate, hideUi = false, hideInternalLayers = false }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<RasterRenderer | null>(null);
   const shapesRef = useRef<Shape[]>([]);
@@ -112,59 +116,23 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
 
   const createInitialShapes = useCallback(() => {
     Shape.resetCounters();
+    shapesRef.current = [];
+    setSelectedId(null);
+    setSelectedPointIndex(null);
+    setInsertPointModeState(false);
+    setDeletePointModeState(false);
+  }, []);
 
-    const rectShape = new Rect(220, 120);
-    rectShape.transform.x = 260;
-    rectShape.transform.y = 200;
-    rectShape.transform.rotation = 0.28;
-    rectShape.fillStyle = '#1e90ff';
-    rectShape.fillOpacity = 200;
-    rectShape.strokeStyle = '#003366';
-    rectShape.strokeWidth = 4;
+  const loadShapes = useCallback((shapeData: ShapeJSON[]) => {
+    Shape.resetCounters();
+    shapesRef.current = shapeData.map((item) => shapeFromJSON(item)).filter((shape): shape is Shape => shape !== null);
+    setSelectedId(shapesRef.current[0]?.id ?? null);
+    setSelectedPointIndex(null);
+    updateSelection();
+  }, []);
 
-    const lineShape = new Line(500, 120, 760, 240);
-    lineShape.strokeStyle = '#00aa55';
-    lineShape.strokeWidth = 8;
-
-    const ovalShape = new Oval(110, 70);
-    ovalShape.transform.x = 520;
-    ovalShape.transform.y = 520;
-    ovalShape.transform.rotation = -0.22;
-    ovalShape.fillStyle = '#ffb000';
-    ovalShape.fillOpacity = 192;
-    ovalShape.strokeStyle = '#8a4b00';
-    ovalShape.strokeWidth = 4;
-
-    const triangleShape = new Triangle(800, 100, 900, 300, 700, 300);
-    triangleShape.fillStyle = '#ff6b9d';
-    triangleShape.fillOpacity = 200;
-    triangleShape.strokeStyle = '#c41e3a';
-    triangleShape.strokeWidth = 3;
-
-    const quadBezier = new QuadraticBezier(150, 450, 250, 350, 350, 450);
-    quadBezier.strokeStyle = '#00ff88';
-    quadBezier.strokeWidth = 1;
-    quadBezier.closed = true;
-
-    const cubicBezier = new CubicBezier(450, 400, 480, 500, 580, 300, 610, 400);
-    cubicBezier.strokeStyle = '#ff00ff';
-    cubicBezier.strokeWidth = 1;
-    cubicBezier.closed = true;
-
-    const pathBezierClosed = new PathBezier([
-      { x: 700, y: 520 },
-      { x: 760, y: 360 },
-      { x: 820, y: 580 },
-      { x: 880, y: 380 },
-      { x: 910, y: 500 },
-    ]);
-    pathBezierClosed.mode = 'catmull';
-    pathBezierClosed.closed = true;
-    pathBezierClosed.strokeStyle = '#00ccff';
-    pathBezierClosed.strokeWidth = 1;
-
-    shapesRef.current = [rectShape, lineShape, ovalShape, triangleShape, quadBezier, cubicBezier, pathBezierClosed];
-    setSelectedId(rectShape.id);
+  const exportShapes = useCallback(() => {
+    return shapesRef.current.map((shape) => shape.toJSON() as ShapeJSON);
   }, []);
 
   const getCanvasCoordinates = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -457,6 +425,8 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
     addLine,
     addTriangle,
     addPath,
+    loadShapes,
+    exportShapes,
     deleteSelectedShape,
     deleteSelectedControlPoint,
     moveLayer,
@@ -475,9 +445,11 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
     addPath,
     addRectangle,
     addTriangle,
+    exportShapes,
     deleteSelectedShape,
     deleteSelectedControlPoint,
     moveLayer,
+    loadShapes,
     selectedId,
     selectedShape,
     selectedPointIndex,
@@ -693,16 +665,44 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
     createInitialShapes();
   }, [createInitialShapes]);
 
+  const syncCanvasSize = useCallback(() => {
+    rendererRef.current?.resize();
+  }, []);
+
+  const syncCanvasSizeIfNeeded = useCallback(() => {
+    const canvas = canvasRef.current;
+    const renderer = rendererRef.current;
+    if (!canvas || !renderer) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const expectedWidth = Math.max(1, Math.floor(rect.width * (window.devicePixelRatio || 1)));
+    const expectedHeight = Math.max(1, Math.floor(rect.height * (window.devicePixelRatio || 1)));
+
+    if (renderer.width !== expectedWidth || renderer.height !== expectedHeight || renderer.dpr !== (window.devicePixelRatio || 1)) {
+      renderer.resize();
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    syncCanvasSize();
+  }, [syncCanvasSize]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
+    const stage = stageRef.current;
     if (!canvas) return;
     const renderer = new RasterRenderer(canvas);
     renderer.setLineAlgorithm(currentAlg);
     rendererRef.current = renderer;
 
     const ro = new ResizeObserver(() => {
-      renderer.resize();
+      syncCanvasSize();
     });
+    if (stage) {
+      ro.observe(stage);
+    }
     ro.observe(canvas);
     if (containerRef.current) {
       ro.observe(containerRef.current);
@@ -712,6 +712,7 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
 
     let raf = 0;
     const frame = () => {
+      syncCanvasSizeIfNeeded();
       const shapes = shapesRef.current;
       const current = rendererRef.current;
       if (current) {
@@ -737,7 +738,7 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
       window.removeEventListener('keydown', handleKeyDown);
       renderer.dispose();
     };
-  }, [handleKeyDown]);
+  }, [handleKeyDown, syncCanvasSize, syncCanvasSizeIfNeeded, currentAlg]);
 
   useEffect(() => {
     if (rendererRef.current) {
@@ -818,7 +819,7 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
 
       <div className={hideUi ? 'absolute inset-0 min-h-0' : 'absolute inset-0 m-3 flex gap-4 min-h-0'}>
         <div className={hideUi ? 'flex-1 min-h-0 bg-white overflow-hidden' : 'flex-1 min-h-0 bg-white border-4 border-black shadow-lg overflow-hidden'}>
-          <div className="relative h-full w-full min-h-0">
+          <div ref={stageRef} className="relative h-full w-full min-h-0">
             <canvas
               ref={canvasRef}
               className="block w-full h-full"

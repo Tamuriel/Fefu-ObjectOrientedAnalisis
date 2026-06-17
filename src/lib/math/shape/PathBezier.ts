@@ -1,4 +1,4 @@
-import { Shape, type Bounds } from './Shape';
+import { Shape, type Bounds, type ShapeJSON } from './Shape';
 import type { RasterRenderer, RGBA } from '../raster/RasterRenderer';
 import { CubicBezier } from './CubicBezier';
 
@@ -375,19 +375,25 @@ export class PathBezier extends Shape {
 
   toJSON() {
     return {
-      type: this.type,
-      id: this.id,
+      type: 'path',
       anchors: this.anchors.map(p => ({ ...p })),
       mode: this.mode,
       closed: this.closed,
-      transform: { ...this.transform },
-      fillStyle: this.fillStyle,
-      strokeStyle: this.strokeStyle,
-      fillOpacity: this.fillOpacity,
-      strokeOpacity: this.strokeOpacity,
-      strokeWidth: this.strokeWidth,
+      ...this.serializeBaseState(),
     };
   }
+}
+
+export function pathBezierFromJSON(data: ShapeJSON) {
+  const anchors = Array.isArray(data.anchors) ? (data.anchors as Array<{ x: number; y: number }>).map((point) => ({ x: point.x, y: point.y })) : [];
+  const path = new PathBezier(anchors);
+  const mode = data.mode;
+  if (mode === 'polyline' || mode === 'bezier' || mode === 'catmull') {
+    path.mode = mode;
+  }
+  path.closed = Boolean(data.closed);
+  path.applySerializedBaseState(data);
+  return path;
 }
 
 /**

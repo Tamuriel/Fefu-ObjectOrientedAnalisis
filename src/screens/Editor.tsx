@@ -1,23 +1,91 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import CanvasScene, { type CanvasSceneHandle } from '../components/CanvasScene';
 import type { LineAlg } from '../lib/math/raster/RasterRenderer';
+import { loadProject, notifyProjectSaved, saveProject, type ProjectData } from '../lib/projectStorage';
 
 const Editor = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const canvasRef = useRef<CanvasSceneHandle | null>(null);
     const [lineAlg, setLineAlg] = useState<LineAlg>('bresenham');
+    const [project, setProject] = useState<ProjectData | null>(null);
     const [, setUpdateKey] = useState(0);
 
     const handleCanvasUpdate = useCallback(() => {
         setUpdateKey((value) => value + 1);
     }, []);
 
-    const handleSave = useCallback(() => {
-        console.log('Save project', id);
+    useEffect(() => {
+        let cancelled = false;
+
+        const load = async () => {
+            if (!id) {
+                return;
+            }
+
+            const loaded = await loadProject(id);
+            if (cancelled) {
+                return;
+            }
+
+            if (loaded) {
+                setProject(loaded);
+                setLineAlg((loaded.lineAlg as LineAlg) ?? 'bresenham');
+                canvasRef.current?.loadShapes(loaded.shapes);
+                return;
+            }
+
+            const emptyProject: ProjectData = {
+                id,
+                name: `Проект ${id}`,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                lineAlg: 'bresenham',
+                shapes: [],
+            };
+            setProject(emptyProject);
+            setLineAlg('bresenham');
+            canvasRef.current?.loadShapes([]);
+            await saveProject(emptyProject);
+        };
+
+        void load();
+
+        return () => {
+            cancelled = true;
+        };
     }, [id]);
+
+    const handleSave = useCallback(async () => {
+        if (!id) {
+            return;
+        }
+
+        try {
+            const shapes = canvasRef.current?.exportShapes() ?? [];
+            const now = new Date().toISOString();
+            const saved = await saveProject({
+                id,
+                name: project?.name ?? `Проект ${id}`,
+                createdAt: project?.createdAt ?? now,
+                lineAlg,
+                shapes,
+                updatedAt: now,
+            });
+
+            setProject(saved);
+
+            try {
+                await notifyProjectSaved(saved.name);
+            } catch (error) {
+                console.error('Project saved, but notification failed:', error);
+            }
+        } catch (error) {
+            console.error('Failed to save project:', error);
+        }
+    }, [id, lineAlg, project]);
 
     const layerItems = canvasRef.current?.getLayers() ?? [];
     const selectedLabel = canvasRef.current?.getSelectedLabel() ?? 'Пусто';
@@ -30,7 +98,7 @@ const Editor = () => {
             className="editor-screen"
         >
             <header className="editor-topbar">
-                <h1 className="editor-topbar__title">Редактирование проекта №{id}</h1>
+                <h1 className="editor-topbar__title">Редактирование {project?.name ?? `проекта №${id}`}</h1>
                 <div className="editor-topbar__actions">
                     <Link to="/" className="editor-button editor-button--secondary">
                         Галерея

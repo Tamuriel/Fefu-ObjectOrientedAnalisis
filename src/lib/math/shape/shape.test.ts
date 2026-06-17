@@ -125,7 +125,7 @@ describe('Shape system', () => {
     const tri = new Triangle(0, 0, 100, 0, 50, 86.6);
     tri.fillStyle = '#ff0000';
     const json = tri.toJSON();
-    expect(json.type).toBe('Triangle');
+    expect(json.type).toBe('triangle');
     expect(json.p0).toBeDefined();
     expect(json.p1).toBeDefined();
     expect(json.p2).toBeDefined();
@@ -204,7 +204,7 @@ describe('Shape system', () => {
     curve.strokeStyle = '#0000ff';
     const json = curve.toJSON();
     
-    expect(json.type).toBe('QuadraticBezier');
+    expect(json.type).toBe('quad');
     expect(json.p0).toBeDefined();
     expect(json.p1).toBeDefined();
     expect(json.p2).toBeDefined();
@@ -268,7 +268,7 @@ describe('Shape system', () => {
     const curve = new CubicBezier(0, 0, 30, 100, 70, -100, 100, 0);
     const json = curve.toJSON();
     
-    expect(json.type).toBe('CubicBezier');
+    expect(json.type).toBe('cubic');
     expect(json.p0).toBeDefined();
     expect(json.p1).toBeDefined();
     expect(json.p2).toBeDefined();
@@ -370,7 +370,7 @@ describe('Shape system', () => {
     path.closed = true;
     
     const json = path.toJSON();
-    expect(json.type).toBe('PathBezier');
+    expect(json.type).toBe('path');
     expect(json.anchors).toHaveLength(3);
     expect(json.mode).toBe('catmull');
     expect(json.closed).toBe(true);

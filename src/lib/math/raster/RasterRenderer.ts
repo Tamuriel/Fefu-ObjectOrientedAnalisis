@@ -156,9 +156,6 @@ export class RasterRenderer {
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
-        this.canvas.style.width = `${clientWidth}px`;
-        this.canvas.style.height = `${clientHeight}px`;
-
         this.imageData = this.ctx.createImageData(this.width, this.height);
         this.buf = this.imageData.data;
     }

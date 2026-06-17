@@ -1,4 +1,4 @@
-import { Shape, type Bounds } from './Shape';
+import { Shape, type Bounds, type ShapeJSON } from './Shape';
 import type { RasterRenderer, RGBA } from '../raster/RasterRenderer';
 
 export class Rect extends Shape {
@@ -54,18 +54,18 @@ export class Rect extends Shape {
 
   toJSON() {
     return {
-      type: this.type,
-      id: this.id,
+      type: 'rect',
       w: this.w,
       h: this.h,
-      transform: { ...this.transform },
-      fillStyle: this.fillStyle,
-      strokeStyle: this.strokeStyle,
-      fillOpacity: this.fillOpacity,
-      strokeOpacity: this.strokeOpacity,
-      strokeWidth: this.strokeWidth,
+      ...this.serializeBaseState(),
     };
   }
+}
+
+export function rectFromJSON(data: ShapeJSON) {
+  const rect = new Rect(Number(data.w) || 0, Number(data.h) || 0);
+  rect.applySerializedBaseState(data);
+  return rect;
 }
 
 function parseColor(cssColor: string, alpha: number): RGBA {

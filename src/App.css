@@ -390,6 +390,82 @@ body {
   font-size: 0.95rem;
 }
 
+.gallery-shell {
+  min-height: calc(100vh - 72px);
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.gallery-shell__content {
+  width: min(1120px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.gallery-create-button {
+  border: 1px solid #0f766e;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #14b8a6, #0f766e);
+  color: #ffffff;
+  padding: 0.95rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 14px 34px rgba(15, 118, 110, 0.24);
+}
+
+.gallery-create-button:hover {
+  transform: translateY(-1px);
+  border-color: #5eead4;
+  box-shadow: 0 18px 42px rgba(15, 118, 110, 0.34);
+}
+
+.gallery-empty-state {
+  margin: 0;
+  text-align: center;
+  color: #cbd5e1;
+}
+
+.gallery-project-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.gallery-project-link {
+  display: block;
+  color: inherit;
+}
+
+.gallery-project-card {
+  height: 100%;
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: radial-gradient(circle at top left, rgba(20, 184, 166, 0.12), rgba(15, 23, 42, 0.95) 60%);
+  box-shadow: 0 16px 36px rgba(2, 6, 23, 0.28);
+  backdrop-filter: blur(8px);
+}
+
+.gallery-project-card__title {
+  margin: 0 0 0.65rem;
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.gallery-project-card__meta {
+  margin: 0.15rem 0;
+  color: #cbd5e1;
+}
+
 @media (max-width: 1150px) {
   .editor-layout {
     grid-template-columns: 1fr;
