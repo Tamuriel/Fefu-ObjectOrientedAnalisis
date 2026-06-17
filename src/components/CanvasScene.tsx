@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { RasterRenderer, type LineAlg, type RGBA } from '../lib/math/raster/RasterRenderer';
+import { mat3 } from '../lib/math/mat3';
 import { Rect, Line, Oval, Triangle, QuadraticBezier, CubicBezier, PathBezier, Shape } from '../lib/math/shape';
 import type { Bounds } from '../lib/math/shape/Shape';
 
@@ -54,6 +55,10 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
     pointerStart: { x: number; y: number } | null;
     startTransform: { x: number; y: number; rotation: number; scaleX: number; scaleY: number } | null;
     startBounds: Bounds | null;
+    resizeStartPointerLocal: { x: number; y: number } | null;
+    resizeStartHandleLocal: { x: number; y: number } | null;
+    resizeStartAnchorLocal: { x: number; y: number } | null;
+    resizeStartAnchorDevice: { x: number; y: number } | null;
     handle?: ResizeHandle;
     startAngle: number;
     center: { x: number; y: number } | null;
@@ -65,6 +70,10 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
     pointerStart: null,
     startTransform: null,
     startBounds: null,
+    resizeStartPointerLocal: null,
+    resizeStartHandleLocal: null,
+    resizeStartAnchorLocal: null,
+    resizeStartAnchorDevice: null,
     startAngle: 0,
     center: null,
     pointIndex: null,
@@ -171,16 +180,54 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
   }, []);
 
   const getHandlePositions = useCallback((shape: Shape) => {
-    const bounds = shape.getBounds();
+    const bounds = shape.getLocalBounds();
+    const corners = [
+      shape.transformPointToDevice(bounds.minX, bounds.minY),
+      shape.transformPointToDevice(bounds.maxX, bounds.minY),
+      shape.transformPointToDevice(bounds.maxX, bounds.maxY),
+      shape.transformPointToDevice(bounds.minX, bounds.maxY),
+    ];
+    const topMidLocal = { x: (bounds.minX + bounds.maxX) / 2, y: bounds.minY };
+    const rotateLocal = { x: topMidLocal.x, y: topMidLocal.y - 32 };
     return {
       resize: {
-        nw: { x: bounds.minX, y: bounds.minY },
-        ne: { x: bounds.maxX, y: bounds.minY },
-        se: { x: bounds.maxX, y: bounds.maxY },
-        sw: { x: bounds.minX, y: bounds.maxY },
+        nw: corners[0],
+        ne: corners[1],
+        se: corners[2],
+        sw: corners[3],
       },
-      rotate: { x: (bounds.minX + bounds.maxX) / 2, y: bounds.minY - 32 },
+      rotate: shape.transformPointToDevice(rotateLocal.x, rotateLocal.y),
     };
+  }, []);
+
+  const getResizeCornerData = useCallback((handle: ResizeHandle, bounds: Bounds) => {
+    switch (handle) {
+      case 'nw':
+        return {
+          anchorLocal: { x: bounds.maxX, y: bounds.maxY },
+          handleLocal: { x: bounds.minX, y: bounds.minY },
+        };
+      case 'ne':
+        return {
+          anchorLocal: { x: bounds.minX, y: bounds.maxY },
+          handleLocal: { x: bounds.maxX, y: bounds.minY },
+        };
+      case 'se':
+        return {
+          anchorLocal: { x: bounds.minX, y: bounds.minY },
+          handleLocal: { x: bounds.maxX, y: bounds.maxY },
+        };
+      case 'sw':
+        return {
+          anchorLocal: { x: bounds.maxX, y: bounds.minY },
+          handleLocal: { x: bounds.minX, y: bounds.maxY },
+        };
+      default:
+        return {
+          anchorLocal: { x: bounds.minX, y: bounds.minY },
+          handleLocal: { x: bounds.maxX, y: bounds.maxY },
+        };
+    }
   }, []);
 
   const pointInRadius = (x: number, y: number, cx: number, cy: number, radius: number) => {
@@ -495,6 +542,18 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
       };
       interactionRef.current.startBounds = currentShape.getBounds();
       interactionRef.current.center = currentShape.getCenter();
+      if (hitHandle.type === 'resize' && hitHandle.handle) {
+        const corners = getResizeCornerData(hitHandle.handle, currentShape.getLocalBounds());
+        interactionRef.current.resizeStartAnchorLocal = corners.anchorLocal;
+        interactionRef.current.resizeStartHandleLocal = corners.handleLocal;
+        interactionRef.current.resizeStartAnchorDevice = currentShape.transformPointToDevice(corners.anchorLocal.x, corners.anchorLocal.y);
+        interactionRef.current.resizeStartPointerLocal = null;
+      } else {
+        interactionRef.current.resizeStartPointerLocal = null;
+        interactionRef.current.resizeStartHandleLocal = null;
+        interactionRef.current.resizeStartAnchorLocal = null;
+        interactionRef.current.resizeStartAnchorDevice = null;
+      }
       interactionRef.current.pointIndex = hitHandle.type === 'point' ? hitHandle.pointIndex ?? null : null;
       interactionRef.current.handle = hitHandle.handle;
       interactionRef.current.startAngle = currentShape && interactionRef.current.center ? Math.atan2(y - interactionRef.current.center.y, x - interactionRef.current.center.x) : 0;
@@ -546,30 +605,47 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
       const dy = y - start.y;
       shape.transform.x = startTransform.x + dx;
       shape.transform.y = startTransform.y + dy;
-    } else if (interactionRef.current.mode === 'resize' && interactionRef.current.handle && interactionRef.current.startBounds) {
-      const bounds = interactionRef.current.startBounds;
-      const anchor = {
-        x: interactionRef.current.handle === 'nw' || interactionRef.current.handle === 'sw' ? bounds.maxX : bounds.minX,
-        y: interactionRef.current.handle === 'nw' || interactionRef.current.handle === 'ne' ? bounds.maxY : bounds.minY,
-      };
-      const startHandle = {
-        x: interactionRef.current.handle === 'nw' || interactionRef.current.handle === 'sw' ? bounds.minX : bounds.maxX,
-        y: interactionRef.current.handle === 'nw' || interactionRef.current.handle === 'ne' ? bounds.minY : bounds.maxY,
-      };
-      const deltaX = x - anchor.x;
-      const deltaY = y - anchor.y;
-      const baseX = startHandle.x - anchor.x;
-      const baseY = startHandle.y - anchor.y;
-      if (baseX !== 0) {
-        shape.transform.scaleX = (deltaX / baseX) * startTransform.scaleX;
+    } else if (
+      interactionRef.current.mode === 'resize' &&
+      interactionRef.current.handle &&
+      interactionRef.current.startTransform &&
+      interactionRef.current.resizeStartHandleLocal &&
+      interactionRef.current.resizeStartAnchorLocal &&
+      interactionRef.current.resizeStartAnchorDevice
+    ) {
+      const startMatrix = mat3.fromTransform(
+        interactionRef.current.startTransform.x,
+        interactionRef.current.startTransform.y,
+        interactionRef.current.startTransform.rotation,
+        interactionRef.current.startTransform.scaleX,
+        interactionRef.current.startTransform.scaleY
+      );
+      const startInverseMatrix = mat3.invert(startMatrix);
+      if (!startInverseMatrix) return;
+
+      const currentPointerLocal = mat3.transformPoint(startInverseMatrix, x, y);
+
+      const anchorLocal = interactionRef.current.resizeStartAnchorLocal;
+      const startHandleLocal = interactionRef.current.resizeStartHandleLocal;
+      const baseWidth = startHandleLocal.x - anchorLocal.x;
+      const baseHeight = startHandleLocal.y - anchorLocal.y;
+
+      shape.transform.rotation = startTransform.rotation;
+
+      if (Math.abs(baseWidth) > 1e-6) {
+        shape.transform.scaleX = startTransform.scaleX * ((currentPointerLocal.x - anchorLocal.x) / baseWidth);
       }
-      if (baseY !== 0) {
-        shape.transform.scaleY = (deltaY / baseY) * startTransform.scaleY;
+      if (Math.abs(baseHeight) > 1e-6) {
+        shape.transform.scaleY = startTransform.scaleY * ((currentPointerLocal.y - anchorLocal.y) / baseHeight);
       }
-      const currentCenter = shape.getCenter();
-      const targetCenter = { x: (anchor.x + x) / 2, y: (anchor.y + y) / 2 };
-      shape.transform.x += targetCenter.x - currentCenter.x;
-      shape.transform.y += targetCenter.y - currentCenter.y;
+
+      const baseMatrix = mat3.multiply(
+        mat3.rotate(shape.transform.rotation),
+        mat3.scale(shape.transform.scaleX, shape.transform.scaleY)
+      );
+      const anchorWithoutTranslation = mat3.transformPoint(baseMatrix, anchorLocal.x, anchorLocal.y);
+      shape.transform.x = interactionRef.current.resizeStartAnchorDevice.x - anchorWithoutTranslation.x;
+      shape.transform.y = interactionRef.current.resizeStartAnchorDevice.y - anchorWithoutTranslation.y;
     } else if (interactionRef.current.mode === 'rotate' && interactionRef.current.center) {
       const angle = Math.atan2(y - interactionRef.current.center.y, x - interactionRef.current.center.x);
       const delta = angle - interactionRef.current.startAngle;
@@ -593,6 +669,10 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
     interactionRef.current.pointerStart = null;
     interactionRef.current.startTransform = null;
     interactionRef.current.startBounds = null;
+    interactionRef.current.resizeStartPointerLocal = null;
+    interactionRef.current.resizeStartHandleLocal = null;
+    interactionRef.current.resizeStartAnchorLocal = null;
+    interactionRef.current.resizeStartAnchorDevice = null;
     interactionRef.current.handle = undefined;
     interactionRef.current.pointIndex = null;
     interactionRef.current.center = null;
@@ -667,11 +747,18 @@ const CanvasScene = forwardRef<CanvasSceneHandle, CanvasSceneProps>(
 
   const drawSelectionOverlay = (renderer: RasterRenderer, shape: Shape) => {
     const color: RGBA = { r: 0, g: 0, b: 0, a: 255 };
-    const bounds = shape.getBounds();
-    renderer.strokeLine(bounds.minX, bounds.minY, bounds.maxX, bounds.minY, color, 2);
-    renderer.strokeLine(bounds.maxX, bounds.minY, bounds.maxX, bounds.maxY, color, 2);
-    renderer.strokeLine(bounds.maxX, bounds.maxY, bounds.minX, bounds.maxY, color, 2);
-    renderer.strokeLine(bounds.minX, bounds.maxY, bounds.minX, bounds.minY, color, 2);
+    const bounds = shape.getLocalBounds();
+    const corners = [
+      shape.transformPointToDevice(bounds.minX, bounds.minY),
+      shape.transformPointToDevice(bounds.maxX, bounds.minY),
+      shape.transformPointToDevice(bounds.maxX, bounds.maxY),
+      shape.transformPointToDevice(bounds.minX, bounds.maxY),
+    ];
+    for (let i = 0; i < corners.length; i += 1) {
+      const a = corners[i];
+      const b = corners[(i + 1) % corners.length];
+      renderer.strokeLine(a.x, a.y, b.x, b.y, color, 2);
+    }
 
     const handles = getHandlePositions(shape);
     Object.values(handles.resize).forEach((handle) => {
